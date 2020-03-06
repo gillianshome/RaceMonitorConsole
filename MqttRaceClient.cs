@@ -19,7 +19,8 @@ namespace RaceMonitor
         /// <summary>
         /// address of the MQTT broker
         /// </summary>
-        private readonly string BrokerAddress = "localhost";
+        // private readonly string BrokerAddress = "localhost";
+        private readonly string BrokerAddress = "172.18.0.2"; // TODO may need to fix this for working in a container
         /// <summary>
         /// client identifier
         /// </summary>
