@@ -29,6 +29,8 @@ namespace RaceMonitor
         //52.078611,-1.016944);
         internal static readonly RaceTrack instance = new RaceTrack(
             "Silverstone", SilverstoneCentre, SilverstoneStartLine);
+        private static readonly JLocation LuffieldCornerStart = new JLocation(52.075741, -1.021487);
+        private static readonly JLocation LuffieldCornerEnd = new JLocation(52.075929, -1.017760);
 
         public static RaceTrack Instance
         {
@@ -41,11 +43,10 @@ namespace RaceMonitor
                 double west = instance.TestCompassDirection(-1, 0);
                 double northeast = instance.TestCompassDirection(1, 1);
                 double southeast = instance.TestCompassDirection(1, -1);
-                double southeast = instance.TestCompassDirection(1, -1);
+                double southwest = instance.TestCompassDirection(-1, -1);
                 double northwest = instance.TestCompassDirection(-1, 1);
-
-
                 */
+
                 return instance; 
             }
         }
@@ -56,7 +57,6 @@ namespace RaceMonitor
             JLocation point = new JLocation(Centre.Lat + latOffset, Centre.Lon + lonOffset);
             return GetAngleToCentre(point);
         }
-
 
         /// <summary>
         /// calculate the angle from the location to the "centre" of the racetrack
@@ -87,9 +87,13 @@ namespace RaceMonitor
             return (StartFinishAngle > angle1 && StartFinishAngle < angle2);
         }
 
-        //TODO remove log function
+        /// <summary>
+        /// Helper function used for logging sample data to a file for testing 
+        /// </summary>
+        /// <param name="strLog">data entry to be written</param>
         public static void WriteLog(string strLog)
         {
+            // TODO - to be more useful the configuration would be read from a file
             string logFilePath = @"C:\Logs\Silverstone-" + DateTime.Today.ToString("MM-dd-yyyy") + "." + "txt";
             FileInfo logFileInfo = new FileInfo(logFilePath);
             DirectoryInfo logDirInfo = new DirectoryInfo(logFileInfo.DirectoryName);

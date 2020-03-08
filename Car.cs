@@ -25,11 +25,16 @@ namespace RaceMonitor
             private set
             {
                 // support lazy instantiation of angle value
+                if (angle.HasValue)
+                {
+                    lastAngle = angle;
+                }
                 angle = null;
                 location = value;
             }
             get => location; 
         }
+
         /// <summary>
         /// calculated position in race relative to tracked cars
         /// generates PositionChangedEventArgs<> events when the value changes
@@ -67,8 +72,6 @@ namespace RaceMonitor
         /// car's location value
         /// </summary>
         private JLocation location;
-        private bool newLap = false;
-
         public double SpeedMph
         {
             get => speedMph;
@@ -83,38 +86,55 @@ namespace RaceMonitor
                 }
             }
         }
+        
+        /// <summary>
+        /// the angle from the 'centre point' of the race track to the position of this car.
+        /// Angles are relative, in the range [-180..180] and only calculated when needed, the 
+        /// value is set to null when the location is changed and recalculated next time it is used
+        /// </summary>
         public double Angle
         {
             get
             {
-                // lazy instantiation of angle value
-                angle = RaceTrack.Instance.GetAngleToCentre(Location);
+                if (!angle.HasValue)
+                {
+                    // lazy instantiation of angle value
+                    angle = RaceTrack.Instance.GetAngleToCentre(Location);
+
+                    if (lastAngle.HasValue)
+                    {
+                        // check for interesting events 
+                        if (RaceTrack.Instance.HasPassedFinishLine(angle.Value, lastAngle.Value))
+                        {
+                            Lap++;
+                            // Copy to a temporary variable to be thread-safe.
+                            EventHandler<LapChangedEventArgs> temp = LapEvent;
+                            if (temp != null)
+                            {
+                                LapEvent(this, new LapChangedEventArgs(Timestamp, Index, Lap));
+                            }
+                        }
+                    }
+                }
                 return angle.Value;
             }
-            internal set
-            {
-                if (angle.HasValue)
-                {
-                    NewLap = RaceTrack.Instance.HasPassedFinishLine(angle.Value, value);
-                }
-                angle = value;
-            }
+            private set { }
         }
+        /// <summary>
+        /// the angle from the 'centre point' of the race track to the position of this car
+        /// taking into account the number of laps completed, a larger LapAngle will always 
+        /// be ahead in the race
+        /// </summary>
+        public double LapAngle { get => Lap * 360 + Angle; private set { } }
+        /// <summary>
+        /// The angle at the previous location, used to determine the movement of the car
+        /// </summary>
+        private Nullable<double> lastAngle = null;
 
-        public bool NewLap
-        {
-            get => newLap;
-            internal set 
-            {
-                if (value)
-                {
-                    // add another lap 
-                    Lap++;
-                }
-                newLap = value; 
-            }
-        }
-        public Int16 Lap { get; internal set; }
+        /// <summary>
+        /// Count the number of times that this car has passed the start / finish line
+        /// </summary>
+        private Int16 Lap;
 
         /// <summary>
         /// Declare an event of delegate type EventHandler of SpeedChangedEventArgs.
@@ -122,6 +142,10 @@ namespace RaceMonitor
         /// where the signature is   void Car_SpeedEvent(object sender, SpeedChangedEventArgs e) {}
         /// </summary>
         public event EventHandler<SpeedChangedEventArgs> SpeedEvent;
+        /// <summary>
+        /// Declare an event of delegate type EventHandler of LapChangedEventArgs.
+        /// </summary>
+        public event EventHandler<LapChangedEventArgs> LapEvent;
         /// <summary>
         /// Declare an event of delegate type EventHandler of PositionChangedEventArgs.
         /// </summary>
@@ -136,13 +160,15 @@ namespace RaceMonitor
         /// <param name="speedChangedListener"></param>
         public Car(JCarCoords coords, 
             EventHandler<SpeedChangedEventArgs> speedChangedListener = null, 
-            EventHandler<PositionChangedEventArgs> positionChangedListener = null)
+            EventHandler<PositionChangedEventArgs> positionChangedListener = null,
+            EventHandler<LapChangedEventArgs> lapChangedListener = null)
         {
             // default values
             Index = coords.CarIndex;
             Timestamp = coords.Timestamp;
             SpeedEvent += speedChangedListener;
             PositionEvent += positionChangedListener;
+            LapEvent += lapChangedListener;
 
             // store the current location 
             Location = new JLocation(coords.Location.Lat, coords.Location.Lon);

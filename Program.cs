@@ -22,6 +22,10 @@ namespace RaceMonitor
                     restart = true;
                 }               
                 Thread.Sleep(2000);
+
+                // run the worker thread - this blocks to process tasks
+                RaceMonitor.Instance.RunPublisherThread();
+
                 Console.WriteLine(GetLetter());
                 i++;
             }
@@ -36,13 +40,6 @@ namespace RaceMonitor
             // connect to the telemetry data and run forever to processes it
             // TODO handle the case when there is no MQTT broker started
             RaceMonitor.Instance.Connect();
-            
-            // TODO - use the restart flag to suppress initial messages
-
-            while (true)
-            {
-                Thread.Sleep(1000);
-            }
         }
 
         // 

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RaceMonitor
@@ -29,6 +30,12 @@ namespace RaceMonitor
         /// cars ordered by car index
         /// </summary>
         private static ConcurrentDictionary<int, Car> Cars;
+
+        internal void RunPublisherThread()
+        {
+            client.RunMessagePublisher();
+        }
+
         /// <summary>
         /// temporary storage for incoming race coordinate data
         /// </summary>
@@ -58,12 +65,17 @@ namespace RaceMonitor
         private RaceMonitor()
         {
             // set up to receive race data from the MQTT connection
-            client = new MqttRaceClient();
-            MqttRaceClient.RaceDataHandler = this;
+            client = new MqttRaceClient(this);
 
-            // 
+            // prepare storage for the current car data
             Cars = new ConcurrentDictionary<int, Car>();
             RaceEvent += RaceMonitor_RaceEvent;
+        }
+
+        internal void UpdatePosition(int index, int newPosition)
+        {
+            Car car = Cars[index];
+            car.Position = newPosition;
         }
 
         /// <summary>
@@ -92,7 +104,7 @@ namespace RaceMonitor
             }
         }
 
-        void NewRaceEvent(long timestamp, string message)
+        internal void NewRaceEvent(long timestamp, string message)
         {
             // Copy to a temporary variable to be thread-safe.
             EventHandler<RaceEventEventArgs> temp = RaceEvent;
@@ -112,7 +124,7 @@ namespace RaceMonitor
                 client.Connect();
                 NewRaceEvent(1234, $"Connecting {client} to data source");
             }
-            catch (SystemException e)
+            catch (SystemException)
             {
                 // could not connect
                 Console.WriteLine("Failed to establish connection, is the data source for {client} available?");
@@ -132,8 +144,7 @@ namespace RaceMonitor
         /// <summary>
         /// object containing data relating to a single timestamp
         /// </summary>
-        TimestampData currentTimeData = new TimestampData(0);
-        //ConcurrentQueue<TimestampData> raceDataQueue = new ConcurrentQueue<TimestampData>();
+        TimestampData currentTimeData = null;
         /// <summary>
         /// implementation of the ICarCoordinates interface
         /// </summary>
@@ -177,13 +188,21 @@ namespace RaceMonitor
             // ensure that all entries are in race order
             Array.Sort(angles, carIndexes);
 
+            //TODO reinstate later when NMQTT socket is working better>?           
             GenerateEnhancedRaceEvents(timestampData, carIndexes);
         }
 
         /// <summary>
+        /// the lap number of the car leading the race
+        /// </summary>
+        private double leadingLap = 1;
+
+#if true
+        /// <summary>
         /// look for and report enhanced race events, for example overtaking moves
         /// </summary>
-        private int[] oldPositions = null;
+        static private int[] oldPositions = null;
+
         private void GenerateEnhancedRaceEvents(TimestampData timestampData, int[] newPositions)
         {
             if (oldPositions != null)
@@ -220,6 +239,7 @@ namespace RaceMonitor
             oldPositions = newPositions;
         }
 
+        //TODO remove unused
         void  x(TimestampData timestampData)
         {
             Car car;
@@ -298,6 +318,7 @@ namespace RaceMonitor
                 }
             }
         }
+#endif
 
         /// <summary>
         /// process a new coordinates value for a car, work out the speed and race positions
@@ -308,11 +329,21 @@ namespace RaceMonitor
             // TODO check whether it is computationally expensive to provide the new value 
             // as this will only be needed each time data about a new car is received
             Car car = Cars.GetOrAdd(coords.CarIndex,
-                new Car(coords, RaceMonitor_SpeedEvent, RaceMonitor_PositionEvent));
+                new Car(coords, RaceMonitor_SpeedEvent, RaceMonitor_PositionEvent, RaceMonitor_LapEvent));
 
             // store the new coordinates
             Cars[coords.CarIndex].UpdateCoordinates(coords);
 
+        }
+
+        private void RaceMonitor_LapEvent(object sender, LapChangedEventArgs e)
+        {
+            if (leadingLap < e.Lap)
+            {
+                NewRaceEvent(e.Timestamp,
+                    $"Car {e.Index} starts a new lap in the lead");
+                leadingLap = e.Lap;
+            }
         }
 
         /// <summary>
@@ -328,6 +359,11 @@ namespace RaceMonitor
         public override string ToString()
         {
             return base.ToString();
+        }
+
+        public void PerformTask(JCarCoords coords)
+        {
+            ProcessRaceData(coords);
         }
     }
 }
