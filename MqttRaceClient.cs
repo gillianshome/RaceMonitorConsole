@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Text;
 using Newtonsoft.Json;
-//using Nmqtt;
-//using uPLibrary.Networking.M2Mqtt;
 using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Disconnecting;
 using MQTTnet.Client.Options;
@@ -21,20 +19,17 @@ namespace RaceMonitor
     /// </summary>
     class MqttRaceClient
     {
-        private IManagedMqttClient managedMqttClientPublisher;
-
-        private IManagedMqttClient managedMqttClientSubscriber;
-
-//        private IMqttServer mqttServer;
-
-
-
-
         #region data
         /// <summary>
-        /// the client that connects to the MQTT broker
+        /// publisher client
         /// </summary>
-//        private readonly  MqttClient Client;
+        private IManagedMqttClient managedMqttClientPublisher;
+        /// <summary>
+        /// subscriber client
+        /// </summary>
+        private IManagedMqttClient managedMqttClientSubscriber;
+        /// <summary>
+        /// the client that connects to the MQTT broker
         /// <summary>
         /// address of the MQTT broker
         /// </summary>
@@ -45,7 +40,6 @@ namespace RaceMonitor
         /// client identifier
         /// </summary>
         private readonly string MqttClientId = "Race Client";
-
         /// <summary>
         /// MQTT topic names
         /// </summary>
@@ -58,26 +52,26 @@ namespace RaceMonitor
         /// MQTT topic names
         /// </summary>
         readonly string CarCoordinatesTopic = "carCoordinates";
-
+        /// <summary>
+        /// queue for incomimg messages
+        /// </summary>
         private readonly ProducerConsumerQueue<JCarCoords> InQ;
-        private readonly ProducerConsumerQueue<Tuple<string, string>> OutQ;
+        /// <summary>
+        /// queue for outgoing messages
+        /// </summary>
+        private readonly ProducerConsumerQueue<MqttMessageEventArgs> OutQ;
         #endregion
 
         /// <summary>
-        /// constructor 
+        /// constructor, 
         /// </summary>
         /// <param name="HandleCarCoords">object to process received coordinates</param>
         public MqttRaceClient(IPerformTask<JCarCoords> HandleCarCoords)
         {
-            //// connect to the MQTT broker using the default port
-            //Client = new MqttClient(BrokerAddress,
-            //                        /*port, // default port */
-            //                        MqttClientId);
-
             InQ = new ProducerConsumerQueue<JCarCoords>(HandleCarCoords);
 
             // need to call worker thread from this thread
-            OutQ = new ProducerConsumerQueue<Tuple<string, string>>(new MessagePublisher(this), false);
+            OutQ = new ProducerConsumerQueue<MqttMessageEventArgs>(new MessagePublisher(this), true);
         }
 
         internal void RunMessagePublisher()
@@ -85,7 +79,7 @@ namespace RaceMonitor
             OutQ.Work();
         }
 
-        private class MessagePublisher : IPerformTask<Tuple<string, string>>
+        private class MessagePublisher : IPerformTask<MqttMessageEventArgs>
         {
             readonly MqttRaceClient Client;
 
@@ -97,18 +91,15 @@ namespace RaceMonitor
             /// <summary>
             /// Publishes a message to the MQTT broker
             /// </summary>
-            /// <param name="messageData">expected to be an array of strings 
-            /// [0] is the MQTT topic 
-            /// [1] is the message</param>
-            public void PerformTask(Tuple<string, string> s)
+            /// <param name="messageData">MQTT topic and message</param>
+            public void PerformTask(MqttMessageEventArgs s)
             {
                 if (s is null)
                 {
                     throw new ArgumentNullException(nameof(s));
                 }
-                Client.PublishMessage(s.Item1, s.Item2);
+                Client.PublishMessage(s.Topic, (string)s.Message);
             }
-
         }
 
         /// <summary>
@@ -222,7 +213,7 @@ namespace RaceMonitor
                 // topic of interest
                 string topic = arg.ApplicationMessage.Topic;
                 object payload = arg.ApplicationMessage.Payload;
-                Client_MessageAvailable(this, new Nmqtt.MqttMessageEventArgs(topic, payload));
+                Client_MessageAvailable(this, new MqttMessageEventArgs(topic, payload));
             }
         }
 
@@ -231,7 +222,7 @@ namespace RaceMonitor
         /// </summary>
         /// <param name="sender">event source</param>
         /// <param name="e">event arguments</param>
-        private void Client_MessageAvailable(object sender, Nmqtt.MqttMessageEventArgs e)
+        private void Client_MessageAvailable(object sender, MqttMessageEventArgs e)
         {
             // only process messages of interest
             if (CarCoordinatesTopic == e.Topic)
@@ -308,7 +299,7 @@ namespace RaceMonitor
 
         private void EnqueueMessage(string eventTopic, string message)
         {
-            OutQ.EnqueueTask(new Tuple<string, string>(eventTopic, message));
+            OutQ.EnqueueTask(new MqttMessageEventArgs(eventTopic, message));
         }
 
         /// <summary>
@@ -406,7 +397,7 @@ namespace RaceMonitor
         {
             string topic = arg.ApplicationMessage.Topic;
             object payload = arg.ApplicationMessage.Payload;
-            Client_MessageAvailable(this, new Nmqtt.MqttMessageEventArgs(topic, payload));
+            Client_MessageAvailable(this, new MqttMessageEventArgs(topic, payload));
             Action a = null;
             return new Task(a);
         }

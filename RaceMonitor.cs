@@ -188,7 +188,6 @@ namespace RaceMonitor
             // ensure that all entries are in race order
             Array.Sort(angles, carIndexes);
 
-            //TODO reinstate later when NMQTT socket is working better>?           
             GenerateEnhancedRaceEvents(timestampData, carIndexes);
         }
 
@@ -197,7 +196,6 @@ namespace RaceMonitor
         /// </summary>
         private double leadingLap = 1;
 
-#if true
         /// <summary>
         /// look for and report enhanced race events, for example overtaking moves
         /// </summary>
@@ -224,10 +222,20 @@ namespace RaceMonitor
                     }
 
                     // update the position of this car
-                    Car car = Cars[index];
-                    car.Position = newPositions[index];
+                    try
+                    {
+                        Car car = Cars[index];
+                        car.Position = newPositions[index];
 
-                    index++;
+                        index++;
+
+                    }
+                    catch (KeyNotFoundException)
+                    {
+                        // this car was not present in the old positions, wait until it has moved before
+                        // reporting a change in position
+                        throw;
+                    }                
                 }
                 if (changes)
                 {
@@ -238,87 +246,6 @@ namespace RaceMonitor
             // store the new positions for use next time around
             oldPositions = newPositions;
         }
-
-        //TODO remove unused
-        void  x(TimestampData timestampData)
-        {
-            Car car;
-            int[] carIndexes = new int[Cars.Count];
-
-            // look for positions that have changed 
-            // <car index, old position, new position>
-            List<Tuple<int, int, int>> changed = new List<Tuple<int, int, int>>();
-            for (int position = 0; position < Cars.Count; position++)
-            {
-                car = Cars[carIndexes[position]];
-                if (car.Position == -1)
-                {
-                    // first reported position of this car
-                    car.Position = position;
-                }
-                else if (car.Position != position)
-                {
-                    // note all the cars that have changed position
-                    changed.Add(new Tuple<int, int, int>(car.Index, car.Position, position));
-                }
-            }
-
-            // use the list of positions that have changed to produce an event
-            NewRaceEvent(timestampData.Timestamp, $"{changed.Count} cars have changed positon ");
-
-            while (changed.Count > 0)
-            {
-                bool reported = false;
-
-                // take the first car that has changed position and find another car that 
-                // it has swapped places with
-                var firstCar = changed[0];
-                changed.RemoveAt(0);
-                foreach (var swappedWith in changed)
-                {
-                    if (firstCar.Item2 == swappedWith.Item3)
-                    {
-                        // found another car that was in the position that
-                        if (firstCar.Item3 == swappedWith.Item2)
-                        {
-                            // found a matching pair now work out which car overtook and which 
-                            // go t passed
-                            int passed;
-                            int overtaker;
-                            if (firstCar.Item2 > firstCar.Item3)
-                            {
-                                passed = firstCar.Item1;
-                                overtaker = swappedWith.Item1;
-                            }
-                            else
-                            {
-                                passed = swappedWith.Item1;
-                                overtaker = firstCar.Item1;
-                            }
-
-                            NewRaceEvent(timestampData.Timestamp,
-                                    $"Car {passed} has been overtaken by {overtaker}");
-                            changed.Remove(swappedWith);
-
-                            // store the new positon values
-                            Cars[firstCar.Item1].Position = firstCar.Item3;
-                            Cars[swappedWith.Item1].Position = swappedWith.Item3;
-
-                            break;
-                        }
-                        else
-                        {
-                            // something more complicated has happened
-                            NewRaceEvent(timestampData.Timestamp,
-                                $"{changed.Count} cars have changed positon");
-                            reported = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-#endif
 
         /// <summary>
         /// process a new coordinates value for a car, work out the speed and race positions

@@ -23,7 +23,7 @@ namespace RaceMonitor
                 }               
                 Thread.Sleep(2000);
 
-                // run the worker thread - this blocks to process tasks
+                // run the message publisher worker thread - this blocks to process tasks
                 RaceMonitor.Instance.RunPublisherThread();
 
                 Console.WriteLine(GetLetter());

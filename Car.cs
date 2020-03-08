@@ -78,7 +78,7 @@ namespace RaceMonitor
             private set
             {
                 speedMph = value;
-                // Copy to a temporary variable to be thread-safe.
+                // Report the speed - Copy to a temporary variable to be thread-safe.
                 EventHandler<SpeedChangedEventArgs> temp = SpeedEvent;
                 if (temp != null)
                 {
