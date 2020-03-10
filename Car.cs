@@ -134,7 +134,7 @@ namespace RaceMonitor
         /// <summary>
         /// Count the number of times that this car has passed the start / finish line
         /// </summary>
-        private Int16 Lap;
+        internal Int16 Lap;
 
         /// <summary>
         /// Declare an event of delegate type EventHandler of SpeedChangedEventArgs.
@@ -194,7 +194,7 @@ namespace RaceMonitor
             }
 
             // store the new coordinate information
-            Location.Update(coords.Location.Lat, coords.Location.Lon);
+            Location = new JLocation(coords.Location.Lat, coords.Location.Lon);
             Timestamp = coords.Timestamp;
         }
 
@@ -268,33 +268,3 @@ namespace RaceMonitor
         #endregion
     }
 }
-
-#if false        /// <summary>
-        /// calculated direction derived from the current and previous positions
-        /// </summary>
-        internal Direction Direction { private set; get; }
-
-        /// <summary>
-        /// a list of directions that the car has travelled
-        /// </summary>
-        internal List<Direction> history = new List<Direction>();
-        /// <summary>
-        /// segment of the track that this car is on
-        /// </summary>
-        internal TrackSegment Segment { private set; get; }
-        /// <summary>
-        /// 
-        /// </summary>
-
-updatelocation
-                // the car is moving, calculate the direction 
-                Direction = CalculateDirection(Location.Lat, Location.Lon, coords.Location.Lat, coords.Location.Lon);
-                if (Segment == null)
-                {
-                    Segment = new TrackSegment(Direction);
-                }
-                else
-                {
-                    Segment.SetDirection(Direction);
-                }
-#endif

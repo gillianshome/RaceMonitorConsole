@@ -2,9 +2,12 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+[assembly: InternalsVisibleToAttribute("RaceUnitTest")]
 
 namespace RaceMonitor
 {
@@ -15,7 +18,7 @@ namespace RaceMonitor
     /// It establishes connections to the for receiving locations
     /// and publishing car speed and position value and 
     /// </summary>
-    class RaceMonitor : ICarCoordinates
+    public class RaceMonitor : ICarCoordinates, IRaceEvent
     {
         #region data
         /// <summary>
@@ -30,17 +33,10 @@ namespace RaceMonitor
         /// cars ordered by car index
         /// </summary>
         private static ConcurrentDictionary<int, Car> Cars;
-
-        internal void RunPublisherThread()
-        {
-            client.RunMessagePublisher();
-        }
-
         /// <summary>
-        /// temporary storage for incoming race coordinate data
+        /// object containing data relating to a single timestamp
         /// </summary>
-        //private readonly ConcurrentDictionary<TimestampData, List<JCarCoords>> RaceData =
-        //    new ConcurrentDictionary<TimestampData, List<JCarCoords>>();
+        private TimestampData currentTimeData = null;
 
         /// <summary>
         /// Declare an event of delegate type EventHandler of RaceEventEventArgs.
@@ -58,7 +54,6 @@ namespace RaceMonitor
             get { return instance; }
         }
 
-
         /// <summary>
         /// private for singleton implementation
         /// </summary>
@@ -72,10 +67,9 @@ namespace RaceMonitor
             RaceEvent += RaceMonitor_RaceEvent;
         }
 
-        internal void UpdatePosition(int index, int newPosition)
+        internal void RunPublisherThread()
         {
-            Car car = Cars[index];
-            car.Position = newPosition;
+            client.RunMessagePublisher();
         }
 
         /// <summary>
@@ -100,7 +94,7 @@ namespace RaceMonitor
             // report changes in postition, except for the first reported position
             if (e.OldPosition != -1)
             {
-                NewRaceEvent(e.Timestamp, $"car {e.Index} moved to {e.NewPosition} from {e.OldPosition}");
+        //        NewRaceEvent(e.Timestamp, $"car {e.Index} moved to {e.NewPosition} from {e.OldPosition}");
             }
         }
 
@@ -122,29 +116,15 @@ namespace RaceMonitor
             try
             {
                 client.Connect();
-                NewRaceEvent(1234, $"Connecting {client} to data source");
+                NewRaceEvent(1234, $"It's the {RaceTrack.Instance} Grand Prix!");
             }
             catch (SystemException)
             {
                 // could not connect
-                Console.WriteLine("Failed to establish connection, is the data source for {client} available?");
+                Console.WriteLine($"Failed to establish connection, is the data source for {client} available?");
             }
         }
 
-        class TimestampData
-        {
-            public long Timestamp { get; private set; }
-
-            public TimestampData(long timestamp)
-            {
-                Timestamp = timestamp;
-            }
-        }
-
-        /// <summary>
-        /// object containing data relating to a single timestamp
-        /// </summary>
-        TimestampData currentTimeData = null;
         /// <summary>
         /// implementation of the ICarCoordinates interface
         /// </summary>
@@ -154,7 +134,7 @@ namespace RaceMonitor
             if (currentTimeData == null)
             {
                 // set up the first timestamp object
-                currentTimeData = new TimestampData(coords.Timestamp);
+                currentTimeData = new TimestampData(coords.Timestamp, this);
             }
             else if (currentTimeData.Timestamp != coords.Timestamp)
             {
@@ -188,7 +168,7 @@ namespace RaceMonitor
             // ensure that all entries are in race order
             Array.Sort(angles, carIndexes);
 
-            GenerateEnhancedRaceEvents(timestampData, carIndexes);
+            timestampData.GenerateEnhancedRaceEvents(carIndexes);
         }
 
         /// <summary>
@@ -197,61 +177,10 @@ namespace RaceMonitor
         private double leadingLap = 1;
 
         /// <summary>
-        /// look for and report enhanced race events, for example overtaking moves
-        /// </summary>
-        static private int[] oldPositions = null;
-
-        private void GenerateEnhancedRaceEvents(TimestampData timestampData, int[] newPositions)
-        {
-            if (oldPositions != null)
-            {
-                // find all the events that have changed
-                var diff_check = newPositions.Zip(oldPositions, (x, y) => !x.Equals(y));
-                bool changes = false;
-                int index = 0;
-                string summary = "";
-                foreach (var item in diff_check)
-                {
-                    char ch = item ? '<' : '=';
-                    summary += $"{newPositions[index]}{ch}{oldPositions[index]} ";
-                    if (item && newPositions[index] < oldPositions[index])
-                    {
-                        // position has changed and item refers to a car that overtook another 
-                        NewRaceEvent(timestampData.Timestamp, $"Car {newPositions[index]} has overtaken {oldPositions[index]} into position {index}");
-                        changes = true;
-                    }
-
-                    // update the position of this car
-                    try
-                    {
-                        Car car = Cars[index];
-                        car.Position = newPositions[index];
-
-                        index++;
-
-                    }
-                    catch (KeyNotFoundException)
-                    {
-                        // this car was not present in the old positions, wait until it has moved before
-                        // reporting a change in position
-                        throw;
-                    }                
-                }
-                if (changes)
-                {
-                    NewRaceEvent(timestampData.Timestamp, $"{summary}");
-                }
-            }
-
-            // store the new positions for use next time around
-            oldPositions = newPositions;
-        }
-
-        /// <summary>
         /// process a new coordinates value for a car, work out the speed and race positions
         /// </summary>
         /// <param name="coords">new car coordinates</param>
-        void HandleCarDataEvent(JCarCoords coords)
+        internal void HandleCarDataEvent(JCarCoords coords)
         {
             // TODO check whether it is computationally expensive to provide the new value 
             // as this will only be needed each time data about a new car is received
@@ -260,15 +189,21 @@ namespace RaceMonitor
 
             // store the new coordinates
             Cars[coords.CarIndex].UpdateCoordinates(coords);
-
+            currentTimeData.Timestamp = coords.Timestamp;
         }
 
+        /// <summary>
+        /// lap event handler
+        /// </summary>
+        /// <param name="sender">event source</param>
+        /// <param name="e">the event</param>
         private void RaceMonitor_LapEvent(object sender, LapChangedEventArgs e)
         {
+            NewRaceEvent(e.Timestamp, $"Car {e.Index} starts a lap {e.Lap}");
+
             if (leadingLap < e.Lap)
             {
-                NewRaceEvent(e.Timestamp,
-                    $"Car {e.Index} starts a new lap in the lead");
+                NewRaceEvent(e.Timestamp, $"Car {e.Index} starts a new lap in the lead");
                 leadingLap = e.Lap;
             }
         }
@@ -288,9 +223,36 @@ namespace RaceMonitor
             return base.ToString();
         }
 
+        /// <summary>
+        /// process new car coordinate message
+        /// </summary>
+        /// <param name="coords"></param>
         public void PerformTask(JCarCoords coords)
         {
             ProcessRaceData(coords);
         }
+
+        #region IRaceEvent implementation 
+        /// <summary>
+        /// the race event
+        /// </summary>
+        /// <param name="source">event source</param>
+        /// <param name="args">event arguments</param>
+        public void Event(object source, RaceEventEventArgs args)
+        {
+            RaceMonitor_RaceEvent(source, args);
+        }
+
+        /// <summary>
+        /// Update the racing position of a car
+        /// </summary>
+        /// <param name="carIndex">the car index value</param>
+        /// <param name="newPosition">the positon</param>
+        public void UpdatePosition(int carIndex, int newPosition)
+        {
+            Car car = Cars[carIndex];
+            car.Position = newPosition;
+        }
+        #endregion
     }
 }

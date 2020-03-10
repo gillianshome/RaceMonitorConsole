@@ -10,7 +10,7 @@ namespace RaceMonitor
         /// location at the centre of the racetrack
         /// </summary>
         public JLocation Centre { get; }
-        private double StartFinishAngle;
+        private readonly double StartFinishAngle;
 
         private string Name { get; }
 
@@ -36,26 +36,8 @@ namespace RaceMonitor
         {
             get 
             {
-                /*
-                double north = instance.TestCompassDirection(0, 1);
-                double south = instance.TestCompassDirection(0, -1);
-                double east = instance.TestCompassDirection(1, 0);
-                double west = instance.TestCompassDirection(-1, 0);
-                double northeast = instance.TestCompassDirection(1, 1);
-                double southeast = instance.TestCompassDirection(1, -1);
-                double southwest = instance.TestCompassDirection(-1, -1);
-                double northwest = instance.TestCompassDirection(-1, 1);
-                */
-
                 return instance; 
             }
-        }
-
-        public double TestCompassDirection(double latOffset, double lonOffset)
-        {
-            // setup a point using the same latitude as the centre
-            JLocation point = new JLocation(Centre.Lat + latOffset, Centre.Lon + lonOffset);
-            return GetAngleToCentre(point);
         }
 
         /// <summary>
@@ -84,7 +66,8 @@ namespace RaceMonitor
         /// <returns>only true when the finish line is between the two angles</returns>
         internal bool HasPassedFinishLine(double angle1, double angle2)
         {
-            return (StartFinishAngle > angle1 && StartFinishAngle < angle2);
+            // the assumption made here is that all tracks are raced in a clockwise direction
+            return (angle1 < StartFinishAngle && StartFinishAngle < angle2);
         }
 
         /// <summary>
@@ -106,6 +89,11 @@ namespace RaceMonitor
                 }
             }
         }
+
+        public override string ToString()
+        {
+            return $"{Name}";
+        }
     }
 
     /*
@@ -118,89 +106,3 @@ namespace RaceMonitor
             };
     */
 }
-
-#if false
-
-        // segments of a racetrack identified by the @Direction of travel
-        static private List<Direction> Segments;
-        private static readonly List<Direction> SilverstoneSegments = new List<Direction>()
-        {
-            Direction.NorthEast,      // start-finish straight
-            Direction.NorthWest,
-            Direction.NorthEast,
-            Direction.NorthWest,
-            Direction.SouthWest,
-            Direction.NorthWest,      // Luffield Corner
-            Direction.NorthEast,      // National Pits Straight
-            Direction.SouthEast,      // Copse Corner
-            Direction.SouthWest,      // after Maggotts Corner
-            Direction.SouthEast,      // Chapel Curve
-            Direction.SouthWest,      // Hangar Straight
-            Direction.NorthWest,      // into Vale
-            Direction.SouthWest,
-            Direction.NorthWest,      // Club Corner
-        };
-
-// constructor
-- caller
-- param = List<Direction> segments, 
-            Segments = segments;
-
-        internal static void GetSegment(TrackSegment trackSegment)
-        {
-
-            if (trackSegment.Segment != -1)
-            {
-                // the segment is already known
-                // TODO - check that direction has changed and matches the next segment
-                //                RaceTrack.NextSegment(this);
-            }
-
-            List<Direction> history = trackSegment.history;
-            if (history.Count >= GetUniqueSegmentCount())
-            {
-                // there is enough information to determine which segment the car is now in
-
-                Nullable<int> newSegment;
-                for (int segment = 0; segment < Segments.Count; segment++)
-                {
-                    newSegment = null;
-
-                    // look for a matching sequence of segments, wrapping back to the start of the segment list as required
-                    for (int nth = 0; nth < history.Count; nth++)
-                    {
-                        if (history[nth] != Segments[(segment + nth) % Segments.Count])
-                        {
-                            // this is not the correct starting segment, try the next segment as the starting point
-                            break;
-                        }
-                        newSegment = segment;
-                    }
-
-                    if (newSegment != null)
-                    {
-                        // found a match, set the segment and clear the history
-                        trackSegment.Segment = newSegment;
-                        history.RemoveRange(1, history.Count - 1);
-                        break;
-                    }
-                }
-            }
-        }
-
-
-        internal static void NextSegment(TrackSegment trackSegment)
-        {
-            // assume that the car has moved onto the next segment
-            trackSegment.Segment = (trackSegment.Segment + 1) % Segments.Count;
-        }
-
-        internal static int GetUniqueSegmentCount()
-        {
-            // TODO - this will depend on the race track layout to determine the number of segments 
-            // needed to determine the segment that a car is travelling on 
-            return 3;
-        }
-
-
-#endif

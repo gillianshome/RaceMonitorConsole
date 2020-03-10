@@ -111,15 +111,9 @@ namespace RaceMonitor
             try
             {
                 // connect to publish messages
-                ButtonPublisherStartClick(this, null);
+                PublisherStart();
                 // connect to listen for messages
                 ListenForCarCoordinates();
-
-                //ConnectionState state = Client.Connect();
-                //if (state == ConnectionState.Connected)
-                //{
-                //    ListenForCarCoordinates();
-                //}
             }
             catch (Exception)
             {
@@ -133,16 +127,6 @@ namespace RaceMonitor
         /// </summary>
         public void ListenForCarCoordinates()
         {
-            //if (client == null)
-            //{
-            //    throw new invalidoperationexception("you must connect before you can subscribe to a topic.");
-            //}
-
-            //string topic = carcoordinatestopic;
-            //mqttqos qos = mqttqos.atmostonce;
-            //var res = client.subscribe(topic, qos);
-            //client.messageavailable += client_messageavailable;
-
             var mqttFactory = new MqttFactory();
 
             var tlsOptions = new MqttClientTlsOptions
@@ -186,7 +170,6 @@ namespace RaceMonitor
 
 
             this.managedMqttClientSubscriber.SubscribeAsync(new TopicFilterBuilder().WithTopic(CarCoordinatesTopic).Build());
-
         }
 
         private void OnSubscriberConnected(MqttClientConnectedEventArgs obj)
@@ -328,13 +311,12 @@ namespace RaceMonitor
 
 
             return 0;
-
-//            byte[] messageData = Encoding.ASCII.GetBytes(message);
-//            return Client.PublishMessage(topic, messageData);
         }
 
-        // TODO rename
-        private async void ButtonPublisherStartClick(object sender, EventArgs e)
+        /// <summary>
+        /// Start the publisher thread
+        /// </summary>
+        private async void PublisherStart()
         {
             var mqttFactory = new MqttFactory();
 
@@ -363,6 +345,7 @@ namespace RaceMonitor
                 throw new InvalidOperationException();
             }
 
+            //no password required
             //options.Credentials = new MqttClientCredentials
             //{
             //    Username = "username",
@@ -385,7 +368,7 @@ namespace RaceMonitor
 
         private void OnPublisherConnected(MqttClientConnectedEventArgs obj)
         {
-            Console.WriteLine("Publisher: connected");
+            Console.WriteLine("Publisher: Connected");
         }
 
         private void OnPublisherDisconnected(MqttClientDisconnectedEventArgs obj)
