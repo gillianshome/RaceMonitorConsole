@@ -111,7 +111,9 @@ namespace RaceMonitor
                             EventHandler<LapChangedEventArgs> temp = LapEvent;
                             if (temp != null)
                             {
-                                LapEvent(this, new LapChangedEventArgs(Timestamp, Index, Lap));
+                                long durationMs = Timestamp - StartTimeOfLap;
+                                LapEvent(this, new LapChangedEventArgs(Timestamp, Index, Lap, durationMs));
+                                StartTimeOfLap = Timestamp;
                             }
                         }
                     }
@@ -135,6 +137,10 @@ namespace RaceMonitor
         /// Count the number of times that this car has passed the start / finish line
         /// </summary>
         internal Int16 Lap;
+        /// <summary>
+        /// the time that the current lap started
+        /// </summary>
+        private long StartTimeOfLap;
 
         /// <summary>
         /// Declare an event of delegate type EventHandler of SpeedChangedEventArgs.

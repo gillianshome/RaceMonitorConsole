@@ -118,10 +118,11 @@ namespace RaceMonitor
                 client.Connect();
                 NewRaceEvent(1234, $"It's the {RaceTrack.Instance} Grand Prix!");
             }
-            catch (SystemException)
+            catch (SystemException e)
             {
                 // could not connect
                 Console.WriteLine($"Failed to establish connection, is the data source for {client} available?");
+                Console.WriteLine(e);
             }
         }
 
@@ -199,7 +200,7 @@ namespace RaceMonitor
         /// <param name="e">the event</param>
         private void RaceMonitor_LapEvent(object sender, LapChangedEventArgs e)
         {
-            NewRaceEvent(e.Timestamp, $"Car {e.Index} starts a lap {e.Lap}");
+            NewRaceEvent(e.Timestamp, $"Car {e.Index} crosses the line with a lap {e.LapDurationMs}ms");
 
             if (leadingLap < e.Lap)
             {
