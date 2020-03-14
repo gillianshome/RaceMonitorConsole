@@ -161,7 +161,7 @@ namespace RaceMonitor
             foreach (var key in Cars.Keys)
             {
                 car = Cars[key];
-                angles[index] = car.Angle;
+                angles[index] = car.LapAngle;
                 carIndexes[index] = car.Index;
                 index++;
             }
