@@ -10,28 +10,51 @@ namespace RaceMonitor
         /// location at the centre of the racetrack
         /// </summary>
         public JLocation Centre { get; }
+        /// <summary>
+        /// A special section of track where the clockwise rule does not apply, this array 
+        /// contains the angles to the start and finish of the bendy bit of the track
+        /// </summary>
+        public double[] BendyBit { get; }
+        /// <summary>
+        /// angle from the centre of the track to the start-finish line
+        /// </summary>
         private readonly double StartFinishAngle;
-
+        /// <summary>
+        /// track name
+        /// </summary>
         private string Name { get; }
 
-        private RaceTrack(string name, JLocation centre, JLocation startFinish) //SortedList<int, Location> trackPoints)
+        private RaceTrack(string name, JLocation centre, JLocation startFinish, JLocation[] bendyBit)
         {
             Name = name;
             Centre = centre;
+            // convert all other locations to angles relative to the centre
+            BendyBit = new double[bendyBit.Length];
+            for (int i = 0; i < bendyBit.Length; i++)
+            {
+                BendyBit[i] = GetAngleToCentre(bendyBit[i]);
+            }
             StartFinishAngle = GetAngleToCentre(startFinish);
         }
 
         // the centre of the track where most parts of the track are moving clockwise 
-        // 52°04'33.0"N 1°00'56.0"W
-        private static readonly JLocation SilverstoneCentre = new JLocation(52.071520, -1.013419);
-        //52.075820, -1.015565);
+        // 52°04'21.3"N 1°00'48.0"W
+        private static readonly JLocation SilverstoneCentre = new JLocation(52.072589, -1.013328);
         private static readonly JLocation SilverstoneStartLine = new JLocation(52.069231, -1.022266);
-        //52.078611,-1.016944);
+        private static readonly JLocation LuffieldCorner = new JLocation(52.075741, -1.021487);
+        private static readonly JLocation BrooklandsCorner = new JLocation(52.077203, -1.019370);
+        /// <summary>
+        /// constructor for Silverstone race track
+        /// </summary>
         internal static readonly RaceTrack instance = new RaceTrack(
-            "Silverstone", SilverstoneCentre, SilverstoneStartLine);
-        private static readonly JLocation LuffieldCornerStart = new JLocation(52.075741, -1.021487);
-        private static readonly JLocation LuffieldCornerEnd = new JLocation(52.075929, -1.017760);
+            "Silverstone", 
+            SilverstoneCentre, 
+            SilverstoneStartLine,
+            new JLocation[]{LuffieldCorner, BrooklandsCorner});
 
+        /// <summary>
+        /// singleton instance
+        /// </summary>
         public static RaceTrack Instance
         {
             get 
@@ -56,6 +79,25 @@ namespace RaceMonitor
             double lonDelta = location.Lon - Centre.Lon;
 
             return Math.Atan2(latDelta, lonDelta) * (180 / Math.PI);
+        }
+
+        /// <summary>
+        /// Calculates the angle to a location taking into account a bendy bit of the track 
+        /// where all locations are adjusted to be equal 
+        /// </summary>
+        /// <param name="location">the location</param>
+        /// <returns>the angle to the location, adjusted if necessary for bendy bits of the track</returns>
+        internal double GetAngleForPosition(JLocation location)
+        {
+            double angle = GetAngleToCentre(location);
+
+            if (BendyBit[0] < angle && angle < BendyBit[1])
+            {
+                // position by angle is unreliable in the bendy bit of the track
+                // so use the angle to the start for all cars on the bend(s)
+                angle = BendyBit[0];
+            }
+            return angle;
         }
 
         /// <summary>
