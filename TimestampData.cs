@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace RaceMonitor
@@ -21,6 +22,25 @@ namespace RaceMonitor
         /// interface for race events and position updates
         /// </summary>
         private readonly IRaceEvent RaceEvent;
+        /// <summary>
+        /// the interval between reports of overtaking manoeuvres to prevent flooding the 
+        /// system with reports 
+        /// </summary>
+        private readonly int OVERTAKE_REPORT_INTERVAL_MS = 10000;
+        /// <summary>
+        /// track the time after which an overtaking manoeuvre can be reported
+        /// </summary>
+        private Nullable<long> TimeOfNextOvertakeReport = null;
+        /// <summary>
+        /// position to name conversion
+        /// </summary>
+        Dictionary<int, string> positions = new Dictionary<int, string> {
+            { 0, "1st" },
+            { 1, "2nd" },
+            { 2, "3rd" },
+            { 20, "21st" },
+            { 21, "22nd" },
+        };
 
         /// <summary>
         /// constructor
@@ -45,11 +65,11 @@ namespace RaceMonitor
             if (oldPositions != null)
             {
                 // flag to turn off reporting when data about a new car is added to the system
-                bool report = newPositions.Length == oldPositions.Length;
+                bool carAlreadyRacing = newPositions.Length == oldPositions.Length;
 
                 // find all the events that have changed
                 var diff_check = newPositions.Zip(oldPositions, (x, y) => !x.Equals(y));
-                bool changes = false;
+                bool positionChanged = false;
                 int index = 0;
                 string summary = "";
                 foreach (var item in diff_check)
@@ -59,11 +79,25 @@ namespace RaceMonitor
                     if (item && newPositions[index] > oldPositions[index])
                     {
                         // position has changed and item refers to a car that overtook another 
-                        if (report)
+                        if (TimeOfNextOvertakeReport.HasValue)
                         {
-                            NewRaceEvent($"Car {newPositions[index]} has overtaken {oldPositions[index]} into position {index}");
+                            if (Timestamp > TimeOfNextOvertakeReport.Value)
+                            {
+                                string posStr = null;
+                                if (!positions.TryGetValue(index, out posStr))
+                                {
+                                    posStr = $"{index + 1}th";
+                                }
+                                NewRaceEvent($"Car {newPositions[index]} overtakes {oldPositions[index]} into {posStr}");
+                                TimeOfNextOvertakeReport += OVERTAKE_REPORT_INTERVAL_MS;
+                            }
+                            positionChanged = true;
                         }
-                        changes = true;
+                        else
+                        {
+                            // initialise overtaking reporting
+                            TimeOfNextOvertakeReport = Timestamp;
+                        }
                     }
 
                     // update the position of this car
@@ -71,10 +105,12 @@ namespace RaceMonitor
 
                     index++;
                 }
-                if (changes && report && false)
-                {
-                    NewRaceEvent($"{summary}");
-                }
+
+                // helpful report of position summary
+                //if (positionChanged && carAlreadyRacing)
+                //{
+                //    NewRaceEvent($"{summary}");
+                //}
             }
 
             // store the new positions for use next time around

@@ -223,10 +223,11 @@ namespace RaceMonitor
         /// </summary>
         /// <param name="timestamp">message timestamp</param>
         /// <param name="index">the index for the car</param>
-        /// <param name="position">the position in the race</param>
+        /// <param name="position">the position in the race [0..numCars]</param>
         internal void SendPosition(long timestamp, int index, int position)
         {
-            SendCarStatus(timestamp, index, "POSITION", position);
+            // convert the position index into a number for 1st, 2nd , etc
+            SendCarStatus(timestamp, index, "POSITION", position + 1);
         }
 
         /// <summary>
