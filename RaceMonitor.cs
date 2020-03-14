@@ -200,7 +200,10 @@ namespace RaceMonitor
         /// <param name="e">the event</param>
         private void RaceMonitor_LapEvent(object sender, LapChangedEventArgs e)
         {
-            NewRaceEvent(e.Timestamp, $"Car {e.Index} crosses the line with a lap {e.LapDurationMs}ms");
+            TimeSpan ts = TimeSpan.FromMilliseconds(e.LapDurationMs);
+            string duration = ts.ToString("m':'ss':'fff");
+            //string duration = e.LapDurationMs.ToString("mm:ss.fffff");
+            NewRaceEvent(e.Timestamp, $"Car {e.Index} finishes a lap in {duration}ms");
 
             if (leadingLap < e.Lap)
             {

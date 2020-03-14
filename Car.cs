@@ -99,7 +99,7 @@ namespace RaceMonitor
                 if (!angle.HasValue)
                 {
                     // lazy instantiation of angle value
-                    angle = RaceTrack.Instance.GetAngleToCentre(Location);
+                    angle = RaceTrack.Instance.GetAngleForPosition(Location);
 
                     if (lastAngle.HasValue)
                     {
@@ -107,14 +107,19 @@ namespace RaceMonitor
                         if (RaceTrack.Instance.HasPassedFinishLine(angle.Value, lastAngle.Value))
                         {
                             Lap++;
-                            // Copy to a temporary variable to be thread-safe.
-                            EventHandler<LapChangedEventArgs> temp = LapEvent;
-                            if (temp != null)
+                            // only report for whole laps completed
+                            if (StartTimeOfLap.HasValue)
                             {
-                                long durationMs = Timestamp - StartTimeOfLap;
-                                LapEvent(this, new LapChangedEventArgs(Timestamp, Index, Lap, durationMs));
-                                StartTimeOfLap = Timestamp;
+                                long durationMs = Timestamp - StartTimeOfLap.Value;
+                                // Copy to a temporary variable to be thread-safe.
+                                EventHandler<LapChangedEventArgs> temp = LapEvent;
+                                if (temp != null)
+                                {
+                                    LapEvent(this, new LapChangedEventArgs(Timestamp, Index, Lap, durationMs));
+                                }
                             }
+                            // remember the start time of this lap 
+                            StartTimeOfLap = Timestamp;
                         }
                     }
                 }
@@ -140,7 +145,7 @@ namespace RaceMonitor
         /// <summary>
         /// the time that the current lap started
         /// </summary>
-        private long StartTimeOfLap;
+        private Nullable<long> StartTimeOfLap = null;
 
         /// <summary>
         /// Declare an event of delegate type EventHandler of SpeedChangedEventArgs.
