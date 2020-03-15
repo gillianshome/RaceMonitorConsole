@@ -1,7 +1,7 @@
 
 ## Introduction
 
-The RaceMonitorConsole application takes raw telemetry data is arriving via MQTT and provides an event stream and car status information such as speed and position for the front-end application to display.
+The RaceMonitorConsole application takes raw telemetry data arriving via MQTT and provides an event stream and car status information such as speed and position for the front-end application to display.
 It enhances the data presented to visualise F1 cars going around a track. 
 
 ## Prerequisites
@@ -34,7 +34,7 @@ The event stream and car status information appears on the McLaren Dashboard.
 Ideally this application would run with the McLaren MAT components, I have provided a modified docker-compose.yaml intended to add the RaceMonitorConsole application to the container running the McLaren MAT components and to link the racemonitorconsole to the broker. It should replace the file in the MAT-Coding-Challenge-master folder. 
 However the event stream and car status information does not appear on the McLaren Dashboard even though the connection status indicators show connected (green).
 
-This uses the autobuild feature that creates a new image when new source is uploaded to GitHub.
+This uses the autobuild feature of Docker Hub that creates a new image when new source is uploaded to GitHub.
 
 ## Other investigations - build and run an image
 
@@ -58,7 +58,7 @@ Simple unit test code is given in RaceTrackUnitTest.txt.
 
 ## What I did
 
-First challenge to learn about docker and get the home development environment working, a PC upgrade was needed> including the Getting started steps (from https://github.com/McLarenAppliedTechnologies/MAT-Coding-Challenge) and testing the setup with `mosquitto_pub`.
+First challenge to learn about docker and get the home development environment working, a PC upgrade was needed including the Getting started steps (from https://github.com/McLarenAppliedTechnologies/MAT-Coding-Challenge) and testing the setup with `mosquitto_pub`.
 
 Second write a basic application to handle the external interfaces of the application (the MqttRaceClient class)
 * to parse incoming telemetry data
