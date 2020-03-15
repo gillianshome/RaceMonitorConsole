@@ -1,0 +1,52 @@
+version: "3"
+
+services:
+        # MQTT broker
+        broker:
+                container_name: broker
+                image: toke/mosquitto
+                ports:
+                        - "127.0.0.1:1883:1883/tcp"
+                external_links:
+                        - racemonitorconsole
+
+        # GPS coords source
+        source_gps:
+                container_name: source_gps
+                image: mclarenappliedtechnologies/recruitment.fanengagement.streamgenerator
+                links:
+                        - broker
+                env_file:
+                        - ./source_gps.env
+                        - ./mqtt.env
+                        - ./cars.env
+                ports:
+                        - "127.0.0.1:8081:8080/tcp"
+
+        # Write to websocket
+        mqtt_to_websocket:
+                container_name: mqtt-to-websocket
+                image: mclarenappliedtechnologies/recruitment.fanengagement.forwarder
+                links:
+                        - broker
+                env_file:
+                        - ./mqtt.env
+                ports:
+                        - "127.0.0.1:8080:8080/tcp"
+
+
+        # Webapp
+        webapp:
+                container_name: webapp
+                image: mclarenappliedtechnologies/recruitment.fanengagement.webapp
+                links:
+                        - mqtt_to_websocket
+                ports:
+                        - "127.0.0.1:8084:8084/tcp"
+
+        # Race Monitor
+        monitor:
+                container_name: "racemonitorconsole"
+                image:  gillianshome/coreconsolegillian
+                links:
+                        - broker
